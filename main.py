@@ -22,6 +22,11 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to MedifyBackend"}
+
+
 # Register Caregiver
 @app.post("/register")
 def register_caregiver(caregiver: CaregiverCreate, db: Session = Depends(get_db)):
