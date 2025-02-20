@@ -33,8 +33,15 @@ def register_caregiver(caregiver: CaregiverCreate, db: Session = Depends(get_db)
     db_caregiver = db.query(Caregiver).filter(Caregiver.email == caregiver.email).first()
     if db_caregiver:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
     hashed_password = get_password_hash(caregiver.password)
-    new_caregiver = Caregiver(name=caregiver.name, email=caregiver.email, password=hashed_password)
+    new_caregiver = Caregiver(
+        name=caregiver.name, 
+        email=caregiver.email, 
+        password=hashed_password,
+        phone=caregiver.phone  # ✅ Fix: Store phone
+    )
+    print(new_caregiver.phone)
     db.add(new_caregiver)
     db.commit()
     db.refresh(new_caregiver)
@@ -99,16 +106,18 @@ def send_reminder(med_id: int, background_tasks: BackgroundTasks, db: Session = 
     
     individual = medication.individual
     caregiver = individual.caregiver
+    print(caregiver.phone,"this is printing")
+    if not caregiver.phone:  # ✅ Fix: Ensure phone exists
+        raise HTTPException(status_code=400, detail="Caregiver phone number is missing")
     
     def retry_call():
         time.sleep(300)  # Wait 5 minutes
         if not medication.taken:
             client.calls.create(
                 twiml=f"<Response><Say>You missed your {medication.name} dose. Please take it as soon as possible.</Say></Response>",
-                to=caregiver.phone,  # Assuming caregiver's phone is stored
+                to=caregiver.phone,
                 from_=TWILIO_PHONE_NUMBER
             )
-            # Notify caregiver after multiple missed doses
             missed_count = db.query(Medication).filter(Medication.id == med_id, Medication.taken == False).count()
             if missed_count >= 3:
                 client.messages.create(
@@ -116,11 +125,12 @@ def send_reminder(med_id: int, background_tasks: BackgroundTasks, db: Session = 
                     from_=TWILIO_PHONE_NUMBER,
                     to=caregiver.phone
                 )
-    
+
     call = client.calls.create(
         twiml=f"<Response><Say>It's time to take your {medication.name} medication. Please confirm by pressing 1.</Say></Response>",
-        to=caregiver.phone,  # Assuming caregiver's phone is stored
+        to=caregiver.phone,
         from_=TWILIO_PHONE_NUMBER
     )
     background_tasks.add_task(retry_call)
     return {"message": "Call reminder sent", "call_sid": call.sid}
+

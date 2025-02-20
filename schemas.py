@@ -4,6 +4,7 @@ class CaregiverCreate(BaseModel):
     name: str
     email: str
     password: str
+    phone: str  # ✅ Fix: Include phone
 
 class IndividualCreate(BaseModel):
     name: str
